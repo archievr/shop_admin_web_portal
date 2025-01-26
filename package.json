@@ -54,6 +54,8 @@
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-hook-form": "^7.54.2",
+    "react-imask": "^7.6.1",
+    "react-phone-number-input": "^3.4.11",
     "simplebar-react": "^3.3.0",
     "stylis": "^4.3.4",
     "stylis-plugin-rtl": "^2.1.1",

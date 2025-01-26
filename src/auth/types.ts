@@ -3,6 +3,7 @@ export type UserType = Record<string, any> | null;
 export type AuthState = {
   user: UserType;
   loading: boolean;
+  token: string;
 };
 
 export type AuthContextValue = {

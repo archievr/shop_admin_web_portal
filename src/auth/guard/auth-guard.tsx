@@ -29,7 +29,7 @@ export function AuthGuard({ children }: AuthGuardProps) {
   const router = useRouter();
   const pathname = usePathname();
 
-  const { authenticated, loading } = useAuthContext();
+  const { loading, authenticated, checkUserSession } = useAuthContext();
 
   const [isChecking, setIsChecking] = useState<boolean>(true);
 
@@ -45,21 +45,18 @@ export function AuthGuard({ children }: AuthGuardProps) {
 
     if (!authenticated) {
       const { method } = CONFIG.auth;
-
       const signInPath = signInPaths[method];
       const redirectPath = createRedirectPath(signInPath);
-
       router.replace(redirectPath);
-
-      return;
+    } else {
+      setIsChecking(false);
     }
-
-    setIsChecking(false);
   };
 
   useEffect(() => {
-    checkPermissions();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    checkUserSession?.().then(() => {
+      checkPermissions();
+    });
   }, [authenticated, loading]);
 
   if (isChecking) {

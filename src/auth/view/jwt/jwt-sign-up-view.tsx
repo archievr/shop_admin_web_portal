@@ -1,7 +1,7 @@
 'use client';
 
 import { z as zod } from 'zod';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { useBoolean } from 'minimal-shared/hooks';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -20,45 +20,43 @@ import { RouterLink } from 'src/routes/components';
 import { Iconify } from 'src/components/iconify';
 import { Form, Field } from 'src/components/hook-form';
 
-import { signUp } from '../../context/jwt';
-import { useAuthContext } from '../../hooks';
-import { getErrorMessage } from '../../utils';
 import { FormHead } from '../../components/form-head';
 import { SignUpTerms } from '../../components/sign-up-terms';
+import { authApi } from 'src/services/api';
+import { SaudiPhoneInput } from 'src/components/hook-form/rhf-phone-input';
 
 // ----------------------------------------------------------------------
 
 export type SignUpSchemaType = zod.infer<typeof SignUpSchema>;
 
 export const SignUpSchema = zod.object({
-  firstName: zod.string().min(1, { message: 'First name is required!' }),
-  lastName: zod.string().min(1, { message: 'Last name is required!' }),
-  email: zod
-    .string()
-    .min(1, { message: 'Email is required!' })
-    .email({ message: 'Email must be a valid email address!' }),
+  username: zod.string().min(1, { message: 'Username is required!' }),
+  company_name: zod.string().min(1, { message: 'Company name is required!' }),
+  name: zod.string().min(1, { message: 'Name is required!' }),
+  phone_number: zod.string().regex(/^\+966[0-9]{9}$/, { message: 'Invalid Saudi phone number' }),
   password: zod
     .string()
     .min(1, { message: 'Password is required!' })
     .min(6, { message: 'Password must be at least 6 characters!' }),
+  otp: zod.string().min(1, { message: 'OTP is required!' }),
 });
 
 // ----------------------------------------------------------------------
 
 export function JwtSignUpView() {
   const router = useRouter();
-
   const showPassword = useBoolean();
-
-  const { checkUserSession } = useAuthContext();
-
+  const [isGettingOtp, setIsGettingOtp] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const defaultValues: SignUpSchemaType = {
-    firstName: 'Hello',
-    lastName: 'Friend',
-    email: 'hello@gmail.com',
-    password: '@2Minimal',
+    username: '',
+    company_name: '',
+    name: '',
+    phone_number: '+966',
+    password: '',
+    otp: '',
   };
 
   const methods = useForm<SignUpSchemaType>({
@@ -68,50 +66,79 @@ export function JwtSignUpView() {
 
   const {
     handleSubmit,
-    formState: { isSubmitting },
+    control,
+    formState: { isSubmitting, errors },
+    watch,
+    trigger,
+    clearErrors,
   } = methods;
+
+  const phoneNumber = watch('phone_number');
+
+  useEffect(() => {
+    if (phoneNumber) {
+      clearErrors('phone_number');
+      setErrorMessage(null);
+    }
+  }, [phoneNumber, clearErrors]);
+
+  const handleGetOtp = async () => {
+    if (!phoneNumber || !/^\+966[0-9]{9}$/.test(phoneNumber)) {
+      setErrorMessage('Please enter a valid Saudi phone number');
+      return;
+    }
+
+    try {
+      setIsGettingOtp(true);
+      await authApi.getOtp({ phone_number: phoneNumber, type: 'register' });
+      setSuccessMessage('OTP sent successfully!');
+      setErrorMessage(null);
+    } catch (error) {
+      console.error(error);
+      setErrorMessage(error?.response?.data?.message || 'Failed to send OTP');
+      setSuccessMessage(null);
+    } finally {
+      setIsGettingOtp(false);
+    }
+  };
 
   const onSubmit = handleSubmit(async (data) => {
     try {
-      await signUp({
-        email: data.email,
-        password: data.password,
-        firstName: data.firstName,
-        lastName: data.lastName,
-      });
-      await checkUserSession?.();
+      const response = await authApi.signUp(data);
 
-      router.refresh();
+      if (response.token) {
+        localStorage.setItem('accessToken', response.token);
+      }
+
+      router.push(paths.auth.jwt.signIn);
     } catch (error) {
       console.error(error);
-      const feedbackMessage = getErrorMessage(error);
-      setErrorMessage(feedbackMessage);
+      setErrorMessage(error?.response?.data?.message || 'Something went wrong');
     }
   });
 
   const renderForm = () => (
     <Box sx={{ gap: 3, display: 'flex', flexDirection: 'column' }}>
-      <Box
-        sx={{ display: 'flex', gap: { xs: 3, sm: 2 }, flexDirection: { xs: 'column', sm: 'row' } }}
-      >
-        <Field.Text
-          name="firstName"
-          label="First name"
-          slotProps={{ inputLabel: { shrink: true } }}
-        />
-        <Field.Text
-          name="lastName"
-          label="Last name"
-          slotProps={{ inputLabel: { shrink: true } }}
-        />
-      </Box>
+      <Field.Text name="username" label="Username" slotProps={{ inputLabel: { shrink: true } }} />
 
-      <Field.Text name="email" label="Email address" slotProps={{ inputLabel: { shrink: true } }} />
+      <Field.Text
+        name="company_name"
+        label="Company Name"
+        slotProps={{ inputLabel: { shrink: true } }}
+      />
+
+      <Field.Text name="name" label="Full Name" slotProps={{ inputLabel: { shrink: true } }} />
+
+      <SaudiPhoneInput
+        control={control}
+        error={errors.phone_number?.message}
+        isGettingOtp={isGettingOtp}
+        onGetOtp={handleGetOtp}
+      />
 
       <Field.Text
         name="password"
         label="Password"
-        placeholder="6+ characters"
         type={showPassword.value ? 'text' : 'password'}
         slotProps={{
           inputLabel: { shrink: true },
@@ -127,6 +154,8 @@ export function JwtSignUpView() {
         }}
       />
 
+      <Field.Text name="otp" label="OTP" slotProps={{ inputLabel: { shrink: true } }} />
+
       <LoadingButton
         fullWidth
         color="inherit"
@@ -134,7 +163,7 @@ export function JwtSignUpView() {
         type="submit"
         variant="contained"
         loading={isSubmitting}
-        loadingIndicator="Create account..."
+        loadingIndicator="Creating account..."
       >
         Create account
       </LoadingButton>
@@ -149,7 +178,7 @@ export function JwtSignUpView() {
           <>
             {`Already have an account? `}
             <Link component={RouterLink} href={paths.auth.jwt.signIn} variant="subtitle2">
-              Get started
+              Sign in
             </Link>
           </>
         }
@@ -159,6 +188,12 @@ export function JwtSignUpView() {
       {!!errorMessage && (
         <Alert severity="error" sx={{ mb: 3 }}>
           {errorMessage}
+        </Alert>
+      )}
+
+      {!!successMessage && (
+        <Alert severity="success" sx={{ mb: 3 }}>
+          {successMessage}
         </Alert>
       )}
 
