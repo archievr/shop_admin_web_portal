@@ -41,7 +41,10 @@ export const endpoints = {
   },
   shop: {
     list: '/shops/shops/',
-    details: '/api/mail/details',
-    labels: '/api/mail/labels',
+    update: '/shops/shops/',
+    create: '/shops/shops/',
+    details: '/shops/shops/',
+    delete: '/shops/shops/',
+    edit: '/shops/shops/',
   },
 };

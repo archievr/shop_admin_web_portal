@@ -9,6 +9,7 @@ import type {
   GridActionsCellItemProps,
   GridColumnVisibilityModel,
 } from '@mui/x-data-grid';
+import { toast } from 'sonner';
 
 import { useBoolean, useSetState } from 'minimal-shared/hooks';
 import { useState, useEffect, forwardRef, useCallback } from 'react';
@@ -28,39 +29,17 @@ import {
   GridToolbarFilterButton,
   GridToolbarColumnsButton,
 } from '@mui/x-data-grid';
-
 import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
-
-import { PRODUCT_STOCK_OPTIONS } from 'src/_mock';
 import { DashboardContent } from 'src/layouts/dashboard';
 
-// import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 import axiosInstance, { endpoints } from 'src/lib/axios';
-import { IShop } from './types';
+import type { IShop } from './types';
 import { GridActionsCellItem } from '@mui/x-data-grid';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 // import { EmptyContent } from 'src/components/empty-content';
-// import { ConfirmDialog } from 'src/components/custom-dialog';
-// import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
-
-// import { ProductTableToolbar } from '../product-table-toolbar';
-// import { ProductTableFiltersResult } from '../product-table-filters-result';
-// import {
-//   RenderCellStock,
-//   RenderCellPrice,
-//   RenderCellPublish,
-//   RenderCellProduct,
-//   RenderCellCreatedAt,
-// } from '../product-table-row';
-
-// ----------------------------------------------------------------------
-
-const PUBLISH_OPTIONS = [
-  { value: 'published', label: 'Published' },
-  { value: 'draft', label: 'Draft' },
-];
+import { ConfirmDialog } from 'src/components/custom-dialog';
 
 const HIDE_COLUMNS = { category: false };
 
@@ -75,6 +54,7 @@ export function ShopsListview() {
   const [shopsLoading, setShopsLoading] = useState<boolean>(false);
   const [selectedRowIds, setSelectedRowIds] = useState<GridRowSelectionModel>([]);
   const [filterButtonEl, setFilterButtonEl] = useState<HTMLButtonElement | null>(null);
+  const [shopToDelete, setShopToDelete] = useState<string | null>(null);
 
   const filters = useSetState<any>({ publish: [], stock: [] });
   const { state: currentFilters } = filters;
@@ -89,24 +69,23 @@ export function ShopsListview() {
     filters: currentFilters,
   });
 
-  // const handleDeleteRow = useCallback(
-  //   (id: string) => {
-  //     const deleteRow = tableData.filter((row) => row?.id !== id);
+  const handleDeleteRow = useCallback(async () => {
+    if (shopToDelete) {
+      try {
+        const res = await axiosInstance.delete(endpoints.shop.delete + shopToDelete + '/');
 
-  //     // toast.success('Delete success!');
+        toast.success('Shop deleted successfully!');
+        getShopData();
+      } catch (error) {
+        toast.error('Failed to delete shop.');
 
-  //     setTableData(deleteRow);
-  //   },
-  //   [tableData]
-  // );
+        console.error('Error during delete shop:', error);
+        throw error;
+      }
 
-  // const handleDeleteRows = useCallback(() => {
-  //   const deleteRows = tableData.filter((row) => !selectedRowIds.includes(row.id));
-
-  //   // toast.success('Delete success!');
-
-  //   setTableData(deleteRows);
-  // }, [selectedRowIds, tableData]);
+      setShopToDelete(null);
+    }
+  }, [tableData, shopToDelete]);
 
   const CustomToolbarCallback = useCallback(
     () => (
@@ -117,68 +96,45 @@ export function ShopsListview() {
         setFilterButtonEl={setFilterButtonEl}
         filteredResults={dataFiltered.length}
         onOpenConfirmDeleteRows={confirmDialog.onTrue}
+        onDeleteRow={handleDeleteRow}
       />
     ),
-    [currentFilters, selectedRowIds]
+    [currentFilters, selectedRowIds, handleDeleteRow]
   );
 
   const columns: GridColDef[] = [
-    { field: 'category', headerName: 'Category', filterable: false },
     {
       field: 'name',
       headerName: 'Name',
       flex: 1,
       minWidth: 200,
       hideable: false,
-      renderCell: (params) => (
-        // <RenderCellProduct params={params} href={paths.dashboard.product.details(params.row.id)} />
-        <div>{params.value}</div>
-      ),
+      renderCell: (params) => <div>{params.value}</div>,
     },
     {
       field: 'description',
       headerName: 'Description',
       flex: 1,
       minWidth: 200,
-      hideable: false,
-      renderCell: (params) => (
-        // <RenderCellProduct params={params} href={paths.dashboard.product.details(params.row.id)} />
-        <div>{params.value}</div>
-      ),
+      hideable: true,
+      renderCell: (params) => <div>{params.value}</div>,
     },
     {
       field: 'contact_number',
       headerName: 'Contact Number',
       flex: 1,
       minWidth: 200,
-      hideable: false,
-      renderCell: (params) => (
-        // <RenderCellProduct params={params} href={paths.dashboard.product.details(params.row.id)} />
-        <div>{params.value}</div>
-      ),
+      hideable: true,
+      renderCell: (params) => <div>{params.value}</div>,
     },
     {
       field: 'address',
       headerName: 'Address',
       flex: 1,
       minWidth: 200,
-      hideable: false,
-      renderCell: (params) => (
-        // <RenderCellProduct params={params} href={paths.dashboard.product.details(params.row.id)} />
-        <div>{params.value}</div>
-      ),
+      hideable: true,
+      renderCell: (params) => <div>{params.value}</div>,
     },
-
-    // {
-    //   field: 'createdAt',
-    //   headerName: 'Create at',
-    //   width: 160,
-    //   renderCell: (params) => (
-    //     // <RenderCellCreatedAt params={params} />
-
-    //     <div>asdsa</div>
-    //   ),
-    // },
 
     {
       type: 'actions',
@@ -195,20 +151,24 @@ export function ShopsListview() {
           showInMenu
           icon={<Iconify icon="solar:eye-bold" />}
           label="View"
-          href={'#'}
+          // href={'#'}
+          href={paths.shops.detail(params.row.id)}
         />,
         <GridActionsLinkItem
           showInMenu
           icon={<Iconify icon="solar:pen-bold" />}
           label="Edit"
-          // href={paths.dashboard.product.edit(params.row.id)}
-          href={'#'}
+          href={paths.shops.edit(params.row.id)}
+          // href={'#'}
         />,
         <GridActionsCellItem
           showInMenu
           icon={<Iconify icon="solar:trash-bin-trash-bold" />}
           label="Delete"
-          // onClick={() => handleDeleteRow(params.row.id)}
+          onClick={() => {
+            setShopToDelete(params.row.id);
+            confirmDialog.onTrue();
+          }}
           sx={{ color: 'error.main' }}
         />,
       ],
@@ -220,30 +180,26 @@ export function ShopsListview() {
       .filter((column) => !HIDE_COLUMNS_TOGGLABLE.includes(column.field))
       .map((column) => column.field);
 
-  // const renderConfirmDialog = () => (
-  //   <ConfirmDialog
-  //     open={confirmDialog.value}
-  //     onClose={confirmDialog.onFalse}
-  //     title="Delete"
-  //     content={
-  //       <>
-  //         Are you sure want to delete <strong> {selectedRowIds.length} </strong> items?
-  //       </>
-  //     }
-  //     action={
-  //       <Button
-  //         variant="contained"
-  //         color="error"
-  //         onClick={() => {
-  //           handleDeleteRows();
-  //           confirmDialog.onFalse();
-  //         }}
-  //       >
-  //         Delete
-  //       </Button>
-  //     }
-  //   />
-  // );
+  const renderConfirmDialog = () => (
+    <ConfirmDialog
+      open={confirmDialog.value}
+      onClose={confirmDialog.onFalse}
+      title="Delete"
+      content={<>Are you sure you want to delete this shop?</>}
+      action={
+        <Button
+          variant="contained"
+          color="error"
+          onClick={() => {
+            handleDeleteRow();
+            confirmDialog.onFalse();
+          }}
+        >
+          Delete
+        </Button>
+      }
+    />
+  );
 
   const getShopData = async () => {
     setShopsLoading(true);
@@ -251,7 +207,6 @@ export function ShopsListview() {
       const res = await axiosInstance.get(endpoints.shop.list);
       setTableData(res.data?.results);
     } catch (error) {
-      console.error('Error during sign in:', error);
       throw error;
     } finally {
       setShopsLoading(false);
@@ -270,8 +225,7 @@ export function ShopsListview() {
           action={
             <Button
               component={RouterLink}
-              // href={paths.dashboard.product.new}
-              href={'#'}
+              href={paths.shops.new}
               variant="contained"
               startIcon={<Iconify icon="mingcute:add-line" />}
             >
@@ -291,7 +245,7 @@ export function ShopsListview() {
           }}
         >
           <DataGrid
-            checkboxSelection
+            // checkboxSelection
             disableRowSelectionOnClick
             rows={dataFiltered}
             columns={columns}
@@ -317,7 +271,7 @@ export function ShopsListview() {
         </Card>
       </DashboardContent>
 
-      {/* {renderConfirmDialog()} */}
+      {renderConfirmDialog()}
     </>
   );
 }
@@ -327,6 +281,7 @@ export function ShopsListview() {
 declare module '@mui/x-data-grid' {
   interface ToolbarPropsOverrides {
     setFilterButtonEl: React.Dispatch<React.SetStateAction<HTMLButtonElement | null>>;
+    onDeleteRow: () => void;
   }
 }
 
@@ -337,24 +292,18 @@ type CustomToolbarProps = GridSlotProps['toolbar'] & {
   filters: UseSetStateReturn<any>;
 
   onOpenConfirmDeleteRows: () => void;
+  onDeleteRow: () => void;
 };
 
 function CustomToolbar({
-  filters,
-  canReset,
   selectedRowIds,
-  filteredResults,
   setFilterButtonEl,
   onOpenConfirmDeleteRows,
+  onDeleteRow,
 }: CustomToolbarProps) {
   return (
     <>
       <GridToolbarContainer>
-        {/* <ProductTableToolbar
-          filters={filters}
-          options={{ stocks: PRODUCT_STOCK_OPTIONS, publishs: PUBLISH_OPTIONS }}
-        /> */}
-
         <GridToolbarQuickFilter />
 
         <Box
@@ -371,7 +320,10 @@ function CustomToolbar({
               size="small"
               color="error"
               startIcon={<Iconify icon="solar:trash-bin-trash-bold" />}
-              onClick={onOpenConfirmDeleteRows}
+              onClick={() => {
+                onOpenConfirmDeleteRows();
+                onDeleteRow();
+              }}
             >
               Delete ({selectedRowIds.length})
             </Button>
@@ -382,14 +334,6 @@ function CustomToolbar({
           <GridToolbarExport />
         </Box>
       </GridToolbarContainer>
-
-      {/* {canReset && (
-        <ProductTableFiltersResult
-          filters={filters}
-          totalResults={filteredResults}
-          sx={{ p: 2.5, pt: 0 }}
-        />
-      )} */}
     </>
   );
 }

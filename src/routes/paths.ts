@@ -44,6 +44,9 @@ export const paths = {
 
   shops: {
     list: '/shops',
+    new: '/shops/new',
+    edit: (id: string) => `/shops/edit/${id}`,
+    detail: (id: string) => `/shops/details/${id}`,
   },
   dashboard: {
     root: ROOTS.DASHBOARD,

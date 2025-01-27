@@ -59,8 +59,13 @@ export function JwtSignInView() {
   const onSubmit = handleSubmit(async (data) => {
     try {
       await signInWithPassword({ username: data.username, password: data.password });
-      const returnTo = new URLSearchParams(window.location.search).get('returnTo');
-      router.push(returnTo);
+      const returnTo = new URLSearchParams(window.location.search)?.get('returnTo');
+
+      if (returnTo) {
+        router.push(returnTo);
+      } else {
+        router.push(paths.shops.list);
+      }
     } catch (error) {
       console.error(error);
       setErrorMessage(error?.response?.data?.message || 'Invalid username or password');

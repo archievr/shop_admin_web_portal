@@ -9,6 +9,7 @@ import { CONFIG } from 'src/global-config';
 import { SplashScreen } from 'src/components/loading-screen';
 
 import { useAuthContext } from '../hooks';
+import { paths } from 'src/routes/paths';
 
 // ----------------------------------------------------------------------
 
@@ -33,7 +34,11 @@ export function GuestGuard({ children }: GuestGuardProps) {
       // Redirect authenticated users to the returnTo path
       // Using `window.location.href` instead of `router.replace` to avoid unnecessary re-rendering
       // that might be caused by the AuthGuard component
-      window.location.href = returnTo;
+      if (returnTo) {
+        window.location.href = returnTo;
+      } else {
+        window.location.href = paths.shops.list;
+      }
       return;
     }
 

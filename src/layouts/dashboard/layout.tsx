@@ -40,6 +40,7 @@ import { NotificationsDrawer } from '../components/notifications-drawer';
 import type { MainSectionProps } from '../core/main-section';
 import type { HeaderSectionProps } from '../core/header-section';
 import type { LayoutSectionProps } from '../core/layout-section';
+import { Toaster } from 'sonner';
 
 // ----------------------------------------------------------------------
 
@@ -227,6 +228,7 @@ export function DashboardLayout({
         ...(Array.isArray(sx) ? sx : [sx]),
       ]}
     >
+      <Toaster position="top-right" />
       {renderMain()}
     </LayoutSection>
   );

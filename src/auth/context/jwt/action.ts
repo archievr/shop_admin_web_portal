@@ -20,8 +20,6 @@ export const signInWithPassword = async ({ username, password }: SignInParams): 
 
     const res = await axios.post(endpoints.auth.signIn, params);
 
-    // console.log('res', res);
-
     const { access, refresh } = res.data;
 
     if (!access || !refresh) {
