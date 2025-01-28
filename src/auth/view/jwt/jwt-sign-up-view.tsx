@@ -134,6 +134,8 @@ export function JwtSignUpView() {
         error={errors.phone_number?.message}
         isGettingOtp={isGettingOtp}
         onGetOtp={handleGetOtp}
+        isOtp={true}
+        fieldName="phone_number"
       />
 
       <Field.Text

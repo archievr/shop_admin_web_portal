@@ -7,14 +7,23 @@ import Button from '@mui/material/Button';
 interface SaudiPhoneInputProps {
   control: Control<any>;
   error?: string;
-  isGettingOtp: boolean;
-  onGetOtp: () => void;
+  isGettingOtp?: boolean;
+  onGetOtp?: () => void;
+  isOtp?: boolean;
+  fieldName: string;
 }
 
-export function SaudiPhoneInput({ control, error, isGettingOtp, onGetOtp }: SaudiPhoneInputProps) {
+export function SaudiPhoneInput({
+  control,
+  error,
+  isGettingOtp,
+  onGetOtp,
+  isOtp = false,
+  fieldName,
+}: SaudiPhoneInputProps) {
   return (
     <Controller
-      name="phone_number"
+      name={fieldName}
       control={control}
       render={({ field, fieldState }) => (
         <TextField
@@ -24,7 +33,7 @@ export function SaudiPhoneInput({ control, error, isGettingOtp, onGetOtp }: Saud
           error={!!fieldState.error}
           helperText={fieldState.error?.message || error}
           InputProps={{
-            endAdornment: (
+            endAdornment: isOtp && (
               <InputAdornment position="end">
                 <Button
                   onClick={onGetOtp}

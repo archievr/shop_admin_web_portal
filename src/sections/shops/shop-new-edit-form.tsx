@@ -1,4 +1,5 @@
-import React, { useEffect } from 'react';
+import type React from 'react';
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import Box from '@mui/material/Box';
@@ -6,15 +7,16 @@ import Card from '@mui/material/Card';
 import Stack from '@mui/material/Stack';
 import Divider from '@mui/material/Divider';
 import CardHeader from '@mui/material/CardHeader';
-import Typography from '@mui/material/Typography';
 import LoadingButton from '@mui/lab/LoadingButton';
+import Button from '@mui/material/Button';
 import { Form, Field } from 'src/components/hook-form';
 import axiosInstance, { endpoints } from 'src/lib/axios';
 import { toast } from 'sonner';
 import { z as zod } from 'zod';
 import { useRouter } from 'src/routes/hooks';
+import { useLoadScript, Autocomplete } from '@react-google-maps/api';
+import { SaudiPhoneInput } from 'src/components/hook-form/rhf-phone-input';
 
-// Define schema for form validation
 const ShopFormSchema = zod.object({
   name: zod.string().min(1, { message: 'Name is required!' }),
   description: zod
@@ -24,40 +26,46 @@ const ShopFormSchema = zod.object({
   note: zod.string().optional(),
   contact_number: zod
     .string()
-    .regex(/^\d+$/, { message: 'Contact number must contain only digits.' })
-    .min(4, { message: 'Contact number must be at least 4 digits.' }),
+    .regex(/^\+966\d{9}$/, { message: 'Invalid Saudi phone number. Format: +966xxxxxxxxx' }),
   address: zod.string().min(1, { message: 'Address is required!' }),
   latitude: zod
-    .number({ coerce: true })
+    .number()
     .nullable()
-    .optional()
-    .refine((value: any) => value === null || (value >= -90 && value <= 90), {
+    .refine((value) => value === null || (value >= -90 && value <= 90), {
       message: 'Latitude must be between -90 and 90.',
     }),
   longitude: zod
-    .number({ coerce: true })
+    .number()
     .nullable()
-    .optional()
-    .refine((value: any) => value === null || (value >= -180 && value <= 180), {
+    .refine((value) => value === null || (value >= -180 && value <= 180), {
       message: 'Longitude must be between -180 and 180.',
     }),
 });
 
-// Define TypeScript type for form data
 type ShopFormSchemaType = zod.infer<typeof ShopFormSchema>;
 
 type Props = {
   id?: string;
 };
 
+const libraries: ('places' | 'geometry')[] = ['places', 'geometry'];
+
 export const ShopNewEditForm: React.FC<Props> = ({ id }) => {
+  const { isLoaded, loadError } = useLoadScript({
+    googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY as string,
+    libraries,
+  });
+
+  const [autocomplete, setAutocomplete] = useState<google.maps.places.Autocomplete | null>(null);
+  const [geocoder, setGeocoder] = useState<google.maps.Geocoder | null>(null);
+
   const methods = useForm<ShopFormSchemaType>({
     resolver: zodResolver(ShopFormSchema),
     defaultValues: {
       name: '',
       description: '',
       note: '',
-      contact_number: '',
+      contact_number: '+966',
       address: '',
       latitude: null,
       longitude: null,
@@ -65,20 +73,27 @@ export const ShopNewEditForm: React.FC<Props> = ({ id }) => {
   });
 
   const {
-    reset, // Allows resetting form values
+    reset,
+    control,
+    setValue,
     handleSubmit,
-    formState: { isSubmitting },
+    formState: { isSubmitting, errors },
   } = methods;
 
   const router = useRouter();
 
   useEffect(() => {
+    if (isLoaded && !geocoder) {
+      setGeocoder(new google.maps.Geocoder());
+    }
+  }, [isLoaded, geocoder]);
+
+  useEffect(() => {
     if (id) {
-      // Fetch existing shop data for editing
       const fetchData = async () => {
         try {
           const response = await axiosInstance.get(`${endpoints.shop.details}${id}`);
-          reset(response.data); // Populate form with the fetched data
+          reset(response.data);
         } catch (error) {
           console.error('Error fetching shop data:', error);
           toast.error('Failed to load shop data.');
@@ -89,25 +104,70 @@ export const ShopNewEditForm: React.FC<Props> = ({ id }) => {
     }
   }, [id, reset]);
 
-  // Handle form submission
   const onSubmit = handleSubmit(async (data: ShopFormSchemaType) => {
     try {
       if (id) {
-        // Editing logic: Use PUT method
-        const response = await axiosInstance.patch(`${endpoints.shop.update}${id}/`, data);
+        await axiosInstance.patch(`${endpoints.shop.update}${id}/`, data);
         toast.success('Shop updated successfully!');
       } else {
-        // Creation logic: Use POST method
-        const response = await axiosInstance.post(endpoints.shop.create, data);
+        await axiosInstance.post(endpoints.shop.create, data);
         toast.success('Shop created successfully!');
       }
-      // Redirect or perform further actions
       router.push('/shops');
     } catch (error) {
       console.error('Submission Error:', error);
       toast.error('Something went wrong!');
     }
   });
+
+  const onPlaceChanged = () => {
+    if (autocomplete !== null) {
+      const place = autocomplete.getPlace();
+      setValue('address', place.formatted_address || '');
+      setValue('latitude', place.geometry?.location?.lat() || null);
+      setValue('longitude', place.geometry?.location?.lng() || null);
+    }
+  };
+
+  const fetchCurrentLocation = () => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const lat = position.coords.latitude;
+          const lng = position.coords.longitude;
+          setValue('latitude', lat);
+          setValue('longitude', lng);
+
+          if (geocoder) {
+            geocoder.geocode({ location: { lat, lng } }, (results, status) => {
+              if (status === 'OK' && results && results[0]) {
+                setValue('address', results[0].formatted_address);
+                toast.success('Current location and address fetched successfully!');
+              } else {
+                toast.error("Couldn't fetch address for the current location.");
+              }
+            });
+          } else {
+            toast.error('Geocoder is not initialized.');
+          }
+        },
+        (error) => {
+          console.error('Error fetching location:', error);
+          toast.error('Failed to fetch current location.');
+        }
+      );
+    } else {
+      toast.error('Geolocation is not supported by this browser.');
+    }
+  };
+
+  if (loadError) {
+    return <div>Error loading maps</div>;
+  }
+
+  if (!isLoaded) {
+    return <div>Loading maps</div>;
+  }
 
   return (
     <Form methods={methods} onSubmit={onSubmit}>
@@ -119,10 +179,22 @@ export const ShopNewEditForm: React.FC<Props> = ({ id }) => {
             <Field.Text name="name" label="Name" />
             <Field.Text name="description" label="Description" multiline rows={4} />
             <Field.Editor name="note" />
-            <Field.Text name="contact_number" label="Contact Number" />
-            <Field.Text name="address" label="Address" />
-            <Field.Text name="latitude" label="Latitude" type="number" />
-            <Field.Text name="longitude" label="Longitude" type="number" />
+            <SaudiPhoneInput
+              control={control}
+              error={errors.contact_number?.message}
+              fieldName="contact_number"
+            />
+
+            <Autocomplete onLoad={setAutocomplete} onPlaceChanged={onPlaceChanged}>
+              <Field.Text name="address" label="Address" />
+            </Autocomplete>
+            <Stack direction="row" spacing={2}>
+              <Field.Text name="latitude" label="Latitude" type="number" />
+              <Field.Text name="longitude" label="Longitude" type="number" />
+              <Button variant="outlined" onClick={fetchCurrentLocation}>
+                Fetch
+              </Button>
+            </Stack>
           </Stack>
         </Card>
         <Box sx={{ textAlign: 'end' }}>
