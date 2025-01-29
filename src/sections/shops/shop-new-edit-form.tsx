@@ -97,7 +97,7 @@ export const ShopNewEditForm: React.FC<Props> = ({ id }) => {
         try {
           const response = await axiosInstance.get(`${endpoints.shop.details}${id}`);
           reset(response.data);
-        } catch (error) {
+        } catch (error: any) {
           console.error('Error fetching shop data:', error);
           toast.error('Failed to load shop data.');
         }
@@ -118,7 +118,7 @@ export const ShopNewEditForm: React.FC<Props> = ({ id }) => {
         toast.success('Shop created successfully!');
       }
       router.push('/shops');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Submission Error:', error);
       toast.error('Something went wrong!');
     }
@@ -170,7 +170,7 @@ export const ShopNewEditForm: React.FC<Props> = ({ id }) => {
       const response = await axiosInstance.get(endpoints.shop.gallery + `?shop=${id}`);
 
       setFiles(response.data?.results);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching files:', error);
       toast.error('Failed to load shop images.');
     }
@@ -191,7 +191,7 @@ export const ShopNewEditForm: React.FC<Props> = ({ id }) => {
       });
       toast.success('Image uploaded successfully!');
       fetchFiles(); // Refresh the file list
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error uploading file:', error);
       toast.error('Failed to upload image.');
     }
@@ -202,7 +202,7 @@ export const ShopNewEditForm: React.FC<Props> = ({ id }) => {
       await axiosInstance.delete(`${endpoints.shop.gallery}${fileId}/`);
       toast.success('Image deleted successfully!');
       fetchFiles(); // Refresh the file list
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error deleting file:', error);
       toast.error('Failed to delete image.');
     }

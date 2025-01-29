@@ -24,7 +24,7 @@ export const fetcher = async (args: string | [string, AxiosRequestConfig]) => {
     const res = await axiosInstance.get(url, { ...config });
 
     return res.data;
-  } catch (error) {
+  } catch (error: any) {
     console.error('Failed to fetch:', error);
     throw error;
   }

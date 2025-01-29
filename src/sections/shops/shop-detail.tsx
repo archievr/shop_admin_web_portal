@@ -69,7 +69,7 @@ const ShopDetail: React.FC<ShopDetailProps> = ({ id }) => {
       try {
         const response = await axiosInstance.get(endpoints.shop.gallery + `?shop=${id}`);
         setFiles(response.data?.results);
-      } catch (error) {
+      } catch (error: any) {
         console.error('Error fetching files:', error);
         toast.error('Failed to load shop images.');
       }

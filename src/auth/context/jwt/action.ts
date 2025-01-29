@@ -30,7 +30,7 @@ export const signInWithPassword = async ({ username, password }: SignInParams): 
     setSession(access);
     localStorage.setItem(REFRESH_TOKEN_KEY, refresh);
     // localStorage.setItem('user', JSON.stringify(user));
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error during sign in:', error);
     throw error;
   }
@@ -45,7 +45,7 @@ export const signOut = async (): Promise<void> => {
     localStorage.removeItem(REFRESH_TOKEN_KEY);
     localStorage.removeItem(JWT_STORAGE_KEY);
     localStorage.removeItem('user');
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error during sign out:', error);
     throw error;
   }
@@ -74,7 +74,7 @@ export const refreshAccessToken = async (): Promise<string> => {
 
     setSession(newAccessToken);
     return newAccessToken;
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error refreshing token:', error);
     // Clear all auth data on refresh token failure
     await signOut();

@@ -35,7 +35,7 @@ export function AuthProvider({ children }: Props) {
       } else {
         setState({ token: '', loading: false });
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
       setState({ token: '', loading: false });
     }

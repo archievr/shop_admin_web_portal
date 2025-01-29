@@ -76,7 +76,7 @@ export function ShopsListview() {
 
         toast.success('Shop deleted successfully!');
         getShopData();
-      } catch (error) {
+      } catch (error: any) {
         toast.error('Failed to delete shop.');
 
         console.error('Error during delete shop:', error);
@@ -206,7 +206,7 @@ export function ShopsListview() {
     try {
       const res = await axiosInstance.get(endpoints.shop.list);
       setTableData(res.data?.results);
-    } catch (error) {
+    } catch (error: any) {
       throw error;
     } finally {
       setShopsLoading(false);

@@ -93,7 +93,7 @@ export function JwtSignUpView() {
       await authApi.getOtp({ phone_number: phoneNumber, type: 'register' });
       setSuccessMessage('OTP sent successfully!');
       setErrorMessage(null);
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
       setErrorMessage(error?.response?.data?.message || 'Failed to send OTP');
       setSuccessMessage(null);
@@ -111,7 +111,7 @@ export function JwtSignUpView() {
       }
 
       router.push(paths.auth.jwt.signIn);
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
       setErrorMessage(error?.response?.data?.message || 'Something went wrong');
     }

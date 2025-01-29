@@ -66,7 +66,7 @@ export function JwtSignInView() {
       } else {
         router.push(paths.shops.list);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
       setErrorMessage(error?.response?.data?.message || 'Invalid username or password');
     }
