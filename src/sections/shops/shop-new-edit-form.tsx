@@ -42,6 +42,22 @@ const ShopFormSchema = zod.object({
     .refine((value) => value === null || (value >= -180 && value <= 180), {
       message: 'Longitude must be between -180 and 180.',
     }),
+  avatar_image: zod
+    .union([
+      zod.string(),
+      zod.instanceof(File).refine((file) => file.size <= 5 * 1024 * 1024, {
+        message: 'Avatar must be less than 5MB',
+      }),
+    ])
+    .optional(),
+  cover_image: zod
+    .union([
+      zod.string(),
+      zod.instanceof(File).refine((file) => file.size <= 10 * 1024 * 1024, {
+        message: 'Cover photo must be less than 10MB',
+      }),
+    ])
+    .optional(),
 });
 
 type ShopFormSchemaType = zod.infer<typeof ShopFormSchema>;
@@ -61,6 +77,8 @@ export const ShopNewEditForm: React.FC<Props> = ({ id }) => {
   const [autocomplete, setAutocomplete] = useState<google.maps.places.Autocomplete | null>(null);
   const [geocoder, setGeocoder] = useState<google.maps.Geocoder | null>(null);
   const [files, setFiles] = useState<Array<{ id: string; image: string }>>([]);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [coverPhotoPreview, setCoverPhotoPreview] = useState<string | null>(null);
 
   const methods = useForm<ShopFormSchemaType>({
     resolver: zodResolver(ShopFormSchema),
@@ -72,6 +90,8 @@ export const ShopNewEditForm: React.FC<Props> = ({ id }) => {
       address: '',
       latitude: null,
       longitude: null,
+      avatar_image: undefined,
+      cover_image: undefined,
     },
   });
 
@@ -96,7 +116,18 @@ export const ShopNewEditForm: React.FC<Props> = ({ id }) => {
       const fetchData = async () => {
         try {
           const response = await axiosInstance.get(`${endpoints.shop.details}${id}`);
-          reset(response.data);
+          const shopData = response.data;
+          reset({
+            ...shopData,
+            avatar_image: shopData.avatar_image || undefined,
+            cover_image: shopData.cover_image || undefined,
+          });
+          if (shopData.avatar_image) {
+            setAvatarPreview(shopData.avatar_image);
+          }
+          if (shopData.cover_image) {
+            setCoverPhotoPreview(shopData.cover_image);
+          }
         } catch (error: any) {
           console.error('Error fetching shop data:', error);
           toast.error('Failed to load shop data.');
@@ -110,11 +141,24 @@ export const ShopNewEditForm: React.FC<Props> = ({ id }) => {
 
   const onSubmit = handleSubmit(async (data: ShopFormSchemaType) => {
     try {
+      const formData = new FormData();
+      Object.entries(data).forEach(([key, value]) => {
+        if (value instanceof File) {
+          formData.append(key, value);
+        } else if (value !== null && value !== undefined) {
+          formData.append(key, String(value));
+        }
+      });
+
       if (id) {
-        await axiosInstance.patch(`${endpoints.shop.update}${id}/`, data);
+        await axiosInstance.patch(`${endpoints.shop.update}${id}/`, formData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        });
         toast.success('Shop updated successfully!');
       } else {
-        await axiosInstance.post(endpoints.shop.create, data);
+        await axiosInstance.post(endpoints.shop.create, formData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        });
         toast.success('Shop created successfully!');
       }
       router.push('/shops');
@@ -168,13 +212,13 @@ export const ShopNewEditForm: React.FC<Props> = ({ id }) => {
   const fetchFiles = async () => {
     try {
       const response = await axiosInstance.get(endpoints.shop.gallery + `?shop=${id}`);
-
       setFiles(response.data?.results);
     } catch (error: any) {
       console.error('Error fetching files:', error);
       toast.error('Failed to load shop images.');
     }
   };
+
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -208,6 +252,22 @@ export const ShopNewEditForm: React.FC<Props> = ({ id }) => {
     }
   };
 
+  const handleAvatarChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setValue('avatar_image', file);
+      setAvatarPreview(URL.createObjectURL(file));
+    }
+  };
+
+  const handleCoverPhotoChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setValue('cover_image', file);
+      setCoverPhotoPreview(URL.createObjectURL(file));
+    }
+  };
+
   if (loadError) {
     return <div>Error loading maps</div>;
   }
@@ -215,8 +275,6 @@ export const ShopNewEditForm: React.FC<Props> = ({ id }) => {
   if (!isLoaded) {
     return <div>Loading maps</div>;
   }
-
-  console.log('files', files);
 
   return (
     <Form methods={methods} onSubmit={onSubmit}>
@@ -244,6 +302,67 @@ export const ShopNewEditForm: React.FC<Props> = ({ id }) => {
                 Fetch
               </Button>
             </Stack>
+
+            <Box>
+              <Typography variant="subtitle1" gutterBottom>
+                Avatar
+              </Typography>
+              <input
+                accept="image/*"
+                style={{ display: 'none' }}
+                id="avatar-upload"
+                type="file"
+                onChange={handleAvatarChange}
+              />
+              <label htmlFor="avatar-upload">
+                <Button variant="contained" component="span">
+                  {avatarPreview ? 'Change Avatar' : 'Upload Avatar'}
+                </Button>
+              </label>
+              {avatarPreview && (
+                <Box mt={2}>
+                  <img
+                    src={avatarPreview || '/placeholder.svg'}
+                    alt="Avatar Preview"
+                    style={{ width: 100, height: 100, objectFit: 'cover' }}
+                  />
+                </Box>
+              )}
+              {errors.avatar_image && (
+                <Typography color="error">{errors.avatar_image.message}</Typography>
+              )}
+            </Box>
+
+            <Box>
+              <Typography variant="subtitle1" gutterBottom>
+                Cover Photo
+              </Typography>
+              <input
+                accept="image/*"
+                style={{ display: 'none' }}
+                id="cover-photo-upload"
+                type="file"
+                onChange={handleCoverPhotoChange}
+              />
+              <label htmlFor="cover-photo-upload">
+                <Button variant="contained" component="span">
+                  {coverPhotoPreview ? 'Change Cover Photo' : 'Upload Cover Photo'}
+                </Button>
+              </label>
+              {coverPhotoPreview && (
+                <Box mt={2}>
+                  <img
+                    src={coverPhotoPreview || '/placeholder.svg'}
+                    alt="Cover Photo Preview"
+                    style={{ width: '100%', height: 200, objectFit: 'cover' }}
+                  />
+                </Box>
+              )}
+              {errors.cover_image && (
+                <Typography color="error">{errors.cover_image.message}</Typography>
+              )}
+            </Box>
+
             {id && (
               <>
                 <Divider />

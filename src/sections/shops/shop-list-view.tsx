@@ -9,7 +9,6 @@ import type {
   GridActionsCellItemProps,
   GridColumnVisibilityModel,
 } from '@mui/x-data-grid';
-import { toast } from 'sonner';
 
 import { useBoolean, useSetState } from 'minimal-shared/hooks';
 import { useState, useEffect, forwardRef, useCallback } from 'react';
@@ -40,6 +39,7 @@ import { GridActionsCellItem } from '@mui/x-data-grid';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 // import { EmptyContent } from 'src/components/empty-content';
 import { ConfirmDialog } from 'src/components/custom-dialog';
+import { toast } from 'sonner';
 
 const HIDE_COLUMNS = { category: false };
 
@@ -55,6 +55,9 @@ export function ShopsListview() {
   const [selectedRowIds, setSelectedRowIds] = useState<GridRowSelectionModel>([]);
   const [filterButtonEl, setFilterButtonEl] = useState<HTMLButtonElement | null>(null);
   const [shopToDelete, setShopToDelete] = useState<string | null>(null);
+  const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState(10);
+  const [totalRows, setTotalRows] = useState(0);
 
   const filters = useSetState<any>({ publish: [], stock: [] });
   const { state: currentFilters } = filters;
@@ -64,10 +67,11 @@ export function ShopsListview() {
 
   const canReset = currentFilters.publish.length > 0 || currentFilters.stock.length > 0;
 
-  const dataFiltered = applyFilter({
-    inputData: tableData,
-    filters: currentFilters,
-  });
+  // Remove this line
+  // const dataFiltered = applyFilter({
+  //   inputData: tableData,
+  //   filters: currentFilters,
+  // });
 
   const handleDeleteRow = useCallback(async () => {
     if (shopToDelete) {
@@ -75,7 +79,7 @@ export function ShopsListview() {
         const res = await axiosInstance.delete(endpoints.shop.delete + shopToDelete + '/');
 
         toast.success('Shop deleted successfully!');
-        getShopData();
+        getShopData(page, pageSize);
       } catch (error: any) {
         toast.error('Failed to delete shop.');
 
@@ -87,6 +91,14 @@ export function ShopsListview() {
     }
   }, [tableData, shopToDelete]);
 
+  // const handleDeleteRows = useCallback(() => {
+  //   const deleteRows = tableData.filter((row) => !selectedRowIds.includes(row.id));
+
+  //   // toast.success('Delete success!');
+
+  //   setTableData(deleteRows);
+  // }, [selectedRowIds, tableData]);
+
   const CustomToolbarCallback = useCallback(
     () => (
       <CustomToolbar
@@ -94,15 +106,16 @@ export function ShopsListview() {
         canReset={canReset}
         selectedRowIds={selectedRowIds}
         setFilterButtonEl={setFilterButtonEl}
-        filteredResults={dataFiltered.length}
+        filteredResults={totalRows} // Change this from dataFiltered.length to totalRows
         onOpenConfirmDeleteRows={confirmDialog.onTrue}
         onDeleteRow={handleDeleteRow}
       />
     ),
-    [currentFilters, selectedRowIds, handleDeleteRow]
+    [currentFilters, selectedRowIds, handleDeleteRow, totalRows] // Add totalRows to dependencies
   );
 
   const columns: GridColDef[] = [
+    // { field: 'category', headerName: 'Category', filterable: false },
     {
       field: 'name',
       headerName: 'Name',
@@ -135,6 +148,17 @@ export function ShopsListview() {
       hideable: true,
       renderCell: (params) => <div>{params.value}</div>,
     },
+
+    // {
+    //   field: 'createdAt',
+    //   headerName: 'Create at',
+    //   width: 160,
+    //   renderCell: (params) => (
+    //     // <RenderCellCreatedAt params={params} />
+
+    //     <div>asdsa</div>
+    //   ),
+    // },
 
     {
       type: 'actions',
@@ -201,21 +225,29 @@ export function ShopsListview() {
     />
   );
 
-  const getShopData = async () => {
+  const getShopData = async (page: number, pageSize: number) => {
     setShopsLoading(true);
     try {
-      const res = await axiosInstance.get(endpoints.shop.list);
-      setTableData(res.data?.results);
+      const res = await axiosInstance.get(endpoints.shop.list, {
+        params: {
+          page: page + 1, // API uses 1-based indexing
+          page_size: pageSize,
+        },
+      });
+      setTableData(res.data.results);
+      setTotalRows(res.data.count);
     } catch (error: any) {
-      throw error;
+      console.error('Error fetching shop data:', error);
+      toast.error('Failed to load shop data.');
     } finally {
       setShopsLoading(false);
     }
   };
 
   useEffect(() => {
-    getShopData();
-  }, []);
+    getShopData(page, pageSize);
+  }, [page, pageSize]);
+
   return (
     <>
       <DashboardContent sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
@@ -245,14 +277,18 @@ export function ShopsListview() {
           }}
         >
           <DataGrid
-            // checkboxSelection
             disableRowSelectionOnClick
-            rows={dataFiltered}
+            rows={tableData}
             columns={columns}
             loading={shopsLoading}
             getRowHeight={() => 'auto'}
-            pageSizeOptions={[5, 10, 20, { value: -1, label: 'All' }]}
-            initialState={{ pagination: { paginationModel: { pageSize: 10 } } }}
+            paginationMode="server"
+            paginationModel={{ page, pageSize: 10 }} //Fixed pageSize
+            onPaginationModelChange={(newModel) => {
+              setPage(newModel.page);
+            }}
+            rowsPerPageOptions={[]}
+            rowCount={totalRows}
             onRowSelectionModelChange={(newSelectionModel) => setSelectedRowIds(newSelectionModel)}
             columnVisibilityModel={columnVisibilityModel}
             onColumnVisibilityModelChange={(newModel) => setColumnVisibilityModel(newModel)}
@@ -368,21 +404,21 @@ export const GridActionsLinkItem = forwardRef<HTMLLIElement, GridActionsLinkItem
 
 // ----------------------------------------------------------------------
 
-type ApplyFilterProps = {
-  inputData: any[];
-  filters: any;
-};
+// type ApplyFilterProps = {
+//   inputData: any[]
+//   filters: any
+// }
 
-function applyFilter({ inputData, filters }: ApplyFilterProps) {
-  const { stock, publish } = filters;
+// function applyFilter({ inputData, filters }: ApplyFilterProps) {
+//   const { stock, publish } = filters
 
-  if (stock.length) {
-    inputData = inputData.filter((product) => stock.includes(product.inventoryType));
-  }
+//   if (stock.length) {
+//     inputData = inputData.filter((product) => stock.includes(product.inventoryType))
+//   }
 
-  if (publish.length) {
-    inputData = inputData.filter((product) => publish.includes(product.publish));
-  }
+//   if (publish.length) {
+//     inputData = inputData.filter((product) => publish.includes(product.publish))
+//   }
 
-  return inputData;
-}
+//   return inputData
+// }

@@ -163,7 +163,7 @@ const ShopDetail: React.FC<ShopDetailProps> = ({ id }) => {
                         googleMapsApiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY as string}
                       >
                         <GoogleMap mapContainerStyle={mapContainerStyle} center={center} zoom={15}>
-                          <Marker position={center} />
+                          {center && <Marker position={center} />}
                         </GoogleMap>
                       </LoadScript>
                     </Box>
