@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import type React from 'react';
+import { useEffect, useState } from 'react';
 import axiosInstance, { endpoints } from 'src/lib/axios';
 import {
   Box,
@@ -12,11 +13,14 @@ import {
   Stack,
   Typography,
   CircularProgress,
+  ImageList,
+  ImageListItem,
 } from '@mui/material';
 import { toast } from 'sonner';
 import { DashboardContent } from 'src/layouts/dashboard';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 import { paths } from 'src/routes/paths';
+import { GoogleMap, LoadScript, Marker } from '@react-google-maps/api';
 
 type ShopDetailProps = {
   id: string;
@@ -32,10 +36,21 @@ type ShopData = {
   longitude: number | null;
 };
 
+type ShopImage = {
+  id: string;
+  image: string;
+};
+
+const mapContainerStyle = {
+  width: '100%',
+  height: '200px',
+};
+
 const ShopDetail: React.FC<ShopDetailProps> = ({ id }) => {
   const [shop, setShop] = useState<ShopData | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [files, setFiles] = useState<ShopImage[]>([]);
 
   useEffect(() => {
     const fetchShopDetails = async () => {
@@ -50,7 +65,18 @@ const ShopDetail: React.FC<ShopDetailProps> = ({ id }) => {
       }
     };
 
+    const fetchFiles = async () => {
+      try {
+        const response = await axiosInstance.get(endpoints.shop.gallery + `?shop=${id}`);
+        setFiles(response.data?.results);
+      } catch (error) {
+        console.error('Error fetching files:', error);
+        toast.error('Failed to load shop images.');
+      }
+    };
+
     fetchShopDetails();
+    fetchFiles();
   }, [id]);
 
   if (loading) {
@@ -74,6 +100,9 @@ const ShopDetail: React.FC<ShopDetailProps> = ({ id }) => {
   if (!shop) {
     return null;
   }
+
+  const center =
+    shop.latitude && shop.longitude ? { lat: shop.latitude, lng: shop.longitude } : undefined;
 
   return (
     <DashboardContent>
@@ -123,27 +152,54 @@ const ShopDetail: React.FC<ShopDetailProps> = ({ id }) => {
               <Divider />
               <CardContent>
                 {shop.latitude && shop.longitude ? (
-                  <Typography>
-                    Latitude: {shop.latitude}
-                    <br />
-                    Longitude: {shop.longitude}
-                  </Typography>
+                  <>
+                    <Typography>
+                      Latitude: {shop.latitude}
+                      <br />
+                      Longitude: {shop.longitude}
+                    </Typography>
+                    <Box sx={{ mt: 2, height: 200, borderRadius: 1, overflow: 'hidden' }}>
+                      <LoadScript
+                        googleMapsApiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY as string}
+                      >
+                        <GoogleMap mapContainerStyle={mapContainerStyle} center={center} zoom={15}>
+                          <Marker position={center} />
+                        </GoogleMap>
+                      </LoadScript>
+                    </Box>
+                  </>
                 ) : (
                   <Typography>No location data available.</Typography>
                 )}
-                <Box
-                  sx={{
-                    mt: 2,
-                    height: 200,
-                    backgroundColor: '#e0e0e0',
-                    display: 'flex',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                    borderRadius: 1,
-                  }}
-                >
-                  <Typography>Map Placeholder</Typography>
-                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
+
+          {/* Shop Images Section */}
+          <Grid item xs={12}>
+            <Card>
+              <CardHeader
+                title="Shop Images"
+                sx={{ backgroundColor: '#f5f5f5', paddingBottom: 2 }}
+              />
+              <Divider />
+              <CardContent>
+                {files.length > 0 ? (
+                  <ImageList sx={{ width: '100%', height: 450 }} cols={3} rowHeight={164}>
+                    {files.map((item) => (
+                      <ImageListItem key={item.id}>
+                        <img
+                          src={`${item.image}?w=164&h=164&fit=crop&auto=format`}
+                          srcSet={`${item.image}?w=164&h=164&fit=crop&auto=format&dpr=2 2x`}
+                          alt={`Shop image ${item.id}`}
+                          loading="lazy"
+                        />
+                      </ImageListItem>
+                    ))}
+                  </ImageList>
+                ) : (
+                  <Typography>No images available for this shop.</Typography>
+                )}
               </CardContent>
             </Card>
           </Grid>

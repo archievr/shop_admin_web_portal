@@ -16,6 +16,8 @@ import { z as zod } from 'zod';
 import { useRouter } from 'src/routes/hooks';
 import { useLoadScript, Autocomplete } from '@react-google-maps/api';
 import { SaudiPhoneInput } from 'src/components/hook-form/rhf-phone-input';
+import { IconButton, Typography } from '@mui/material';
+import { Iconify } from 'src/components/iconify';
 
 const ShopFormSchema = zod.object({
   name: zod.string().min(1, { message: 'Name is required!' }),
@@ -58,6 +60,7 @@ export const ShopNewEditForm: React.FC<Props> = ({ id }) => {
 
   const [autocomplete, setAutocomplete] = useState<google.maps.places.Autocomplete | null>(null);
   const [geocoder, setGeocoder] = useState<google.maps.Geocoder | null>(null);
+  const [files, setFiles] = useState<Array<{ id: string; image: string }>>([]);
 
   const methods = useForm<ShopFormSchemaType>({
     resolver: zodResolver(ShopFormSchema),
@@ -101,6 +104,7 @@ export const ShopNewEditForm: React.FC<Props> = ({ id }) => {
       };
 
       fetchData();
+      fetchFiles();
     }
   }, [id, reset]);
 
@@ -161,6 +165,49 @@ export const ShopNewEditForm: React.FC<Props> = ({ id }) => {
     }
   };
 
+  const fetchFiles = async () => {
+    try {
+      const response = await axiosInstance.get(endpoints.shop.gallery + `?shop=${id}`);
+
+      setFiles(response.data?.results);
+    } catch (error) {
+      console.error('Error fetching files:', error);
+      toast.error('Failed to load shop images.');
+    }
+  };
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append('image', file);
+    formData.append('shop', id as string);
+
+    try {
+      await axiosInstance.post(endpoints.shop.gallery, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      toast.success('Image uploaded successfully!');
+      fetchFiles(); // Refresh the file list
+    } catch (error) {
+      console.error('Error uploading file:', error);
+      toast.error('Failed to upload image.');
+    }
+  };
+
+  const handleFileDelete = async (fileId: string) => {
+    try {
+      await axiosInstance.delete(`${endpoints.shop.gallery}${fileId}/`);
+      toast.success('Image deleted successfully!');
+      fetchFiles(); // Refresh the file list
+    } catch (error) {
+      console.error('Error deleting file:', error);
+      toast.error('Failed to delete image.');
+    }
+  };
+
   if (loadError) {
     return <div>Error loading maps</div>;
   }
@@ -168,6 +215,8 @@ export const ShopNewEditForm: React.FC<Props> = ({ id }) => {
   if (!isLoaded) {
     return <div>Loading maps</div>;
   }
+
+  console.log('files', files);
 
   return (
     <Form methods={methods} onSubmit={onSubmit}>
@@ -195,6 +244,52 @@ export const ShopNewEditForm: React.FC<Props> = ({ id }) => {
                 Fetch
               </Button>
             </Stack>
+            {id && (
+              <>
+                <Divider />
+                <Box>
+                  <Typography variant="subtitle1" gutterBottom>
+                    Shop Images
+                  </Typography>
+                  <input
+                    accept="image/*"
+                    style={{ display: 'none' }}
+                    id="raised-button-file"
+                    multiple
+                    type="file"
+                    onChange={handleFileUpload}
+                  />
+                  <label htmlFor="raised-button-file">
+                    <Button variant="contained" component="span">
+                      Upload Image
+                    </Button>
+                  </label>
+                  <Box sx={{ mt: 2, display: 'flex', flexWrap: 'wrap', gap: 2 }}>
+                    {files.map((file) => (
+                      <Box key={file.id} sx={{ position: 'relative' }}>
+                        <img
+                          src={file.image || '/placeholder.svg'}
+                          alt="Shop"
+                          style={{ width: 100, height: 100, objectFit: 'cover' }}
+                        />
+                        <IconButton
+                          sx={{
+                            position: 'absolute',
+                            top: 0,
+                            right: 0,
+                            bgcolor: 'background.paper',
+                          }}
+                          size="small"
+                          onClick={() => handleFileDelete(file.id)}
+                        >
+                          <Iconify width={16} icon="eva:backspace-outline" />
+                        </IconButton>
+                      </Box>
+                    ))}
+                  </Box>
+                </Box>
+              </>
+            )}
           </Stack>
         </Card>
         <Box sx={{ textAlign: 'end' }}>

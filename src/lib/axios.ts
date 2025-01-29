@@ -46,5 +46,6 @@ export const endpoints = {
     details: '/shops/shops/',
     delete: '/shops/shops/',
     edit: '/shops/shops/',
+    gallery: '/shops/gallery/',
   },
 };
