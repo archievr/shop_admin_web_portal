@@ -302,7 +302,15 @@ export function ShopsListview() {
               panel: { anchorEl: filterButtonEl },
               columnsManagement: { getTogglableColumns },
             }}
-            sx={{ [`& .${gridClasses.cell}`]: { alignItems: 'center', display: 'inline-flex' } }}
+            sx={{
+              [`& .${gridClasses.cell}`]: { alignItems: 'center', display: 'inline-flex' },
+              '& .MuiDataGrid-cell:focus, & .MuiDataGrid-columnHeader:focus': {
+                outline: 'none !important',
+              },
+              '& .MuiDataGrid-cell:focus-within, & .MuiDataGrid-columnHeader:focus-within': {
+                outline: 'none !important',
+              },
+            }}
           />
         </Card>
       </DashboardContent>

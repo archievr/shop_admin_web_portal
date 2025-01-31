@@ -55,7 +55,7 @@ const ShopDetail: React.FC<ShopDetailProps> = ({ id }) => {
   useEffect(() => {
     const fetchShopDetails = async () => {
       try {
-        const response = await axiosInstance.get(`${endpoints.shop.details}${id}`);
+        const response = await axiosInstance.get(`${endpoints.shop.details}${id}/`);
         setShop(response.data);
       } catch (err) {
         setError('Failed to fetch shop details. Please try again.');

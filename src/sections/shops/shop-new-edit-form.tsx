@@ -115,7 +115,7 @@ export const ShopNewEditForm: React.FC<Props> = ({ id }) => {
     if (id) {
       const fetchData = async () => {
         try {
-          const response = await axiosInstance.get(`${endpoints.shop.details}${id}`);
+          const response = await axiosInstance.get(`${endpoints.shop.details}${id}/`);
           const shopData = response.data;
           reset({
             ...shopData,
